@@ -1,0 +1,118 @@
+
+flowchart TD
+    %% === Jenkins Pipeline 超詳細流程圖 (Dark Theme 友善配色) ===
+
+    %% 初始化階段
+    subgraph STAGE_INIT["Initialize<br/>初始化"]
+        INIT_CLEAN_CACHE["Clean Build Cache<br/>清除建置快取"]
+        INIT_PRINT_CAUSE["Print Build Cause<br/>顯示觸發原因"]
+        INIT_CLEAN_REPO["Clean Repository<br/>清理版本庫"]
+        INIT_REMOVE_ARTIFACTS["Remove Artifacts Folder<br/>刪除產物資料夾"]
+        INIT_RESET_REPO["Reset Repository<br/>重設版本庫"]
+        INIT_CHECKOUT["Checkout Commit<br/>切換 Commit"]
+        INIT_PREPARE_TEST["Prepare Test Workspace<br/>準備測試環境"]
+        INIT_NOTIFY["Discord Notify: Start<br/>通知開始建置"]
+    end
+
+    %% 建置/分析/測試 (平行)
+    subgraph STAGE_BAT["Build & Analyze & Test<br/>建置、分析、測試 (平行)"]
+        %% Cron Build
+        subgraph CRON["Cron Build<br/>定時建置"]
+            CRON_OVERRIDE["Override Build Comment"]
+            CRON_ANDROID["Android All Local"]
+            CRON_IOS["iOS All Local"]
+            CRON_EXPORT_IOS_DEBUG["Export iOS Debug"]
+        end
+        %% Webhook Build
+        subgraph WEBHOOK["Webhook Build<br/>Webhook 觸發"]
+            WEBHOOK_OVERRIDE["Override Build Comment"]
+            WEBHOOK_ANDROID["Android (Debug) Local"]
+            WEBHOOK_IOS["iOS (Debug) Local"]
+            WEBHOOK_EXPORT_IOS["Export iOS"]
+        end
+        %% Custom Build
+        subgraph CUSTOM["Custom Build<br/>手動觸發"]
+            CUSTOM_ANDROID["Android (Custom) Local"]
+            CUSTOM_IOS["iOS (Custom) Local"]
+            CUSTOM_EXPORT_IOS["Export iOS"]
+        end
+        %% Analyze
+        subgraph ANALYZE["Analyze<br/>程式碼分析"]
+            ANALYZE_CLOC["cloc"]
+            ANALYZE_PMD["PMD"]
+        end
+        %% Test
+        subgraph TEST["Test<br/>自動化測試"]
+            TEST_FILENAME["File Name Check"]
+            TEST_CONFIG_HASH["Send Config Hash Local"]
+            TEST_UNITY_ANDROID["Unity Android Local"]
+            TEST_UNITY_IOS["Unity iOS Local"]
+        end
+    end
+
+    %% 檢查隱藏錯誤
+    STAGE_CHECK_ERROR["Check Hidden Error<br/>檢查隱藏錯誤"]
+
+    %% 封存產物
+    STAGE_ARCHIVE["Archive Artifacts<br/>封存產物"]
+
+    %% 部署 (平行)
+    subgraph STAGE_DEPLOY["Deploy<br/>部署 (平行)"]
+        DEPLOY_CIFS["CIFS<br/>Windows 共用"]
+        DEPLOY_FIREBASE["Firebase (Android)"]
+        DEPLOY_TESTFLIGHT["TestFlight (iOS)"]
+    end
+
+    %% 後置處理
+    subgraph STAGE_POST["Post Actions<br/>後置處理"]
+        POST_CLEAN_TEST["Clean Test Workspace"]
+        POST_SUCCESS["Success: Discord Notify"]
+        POST_UNSTABLE["Unstable: Discord Notify"]
+        POST_ABORTED["Aborted: Discord Notify"]
+        POST_FAILURE["Failure: Discord Notify"]
+        POST_FIXED["Fixed: Email Notify"]
+        POST_REGRESSION["Regression: Email Notify"]
+    end
+
+    %% 主流程連線
+    INIT_CLEAN_CACHE --> INIT_PRINT_CAUSE --> INIT_CLEAN_REPO --> INIT_REMOVE_ARTIFACTS --> INIT_RESET_REPO --> INIT_CHECKOUT --> INIT_PREPARE_TEST --> INIT_NOTIFY --> STAGE_BAT
+    STAGE_BAT --> STAGE_CHECK_ERROR --> STAGE_ARCHIVE --> STAGE_DEPLOY --> STAGE_POST
+
+    %% Cron Build 詳細連線
+    CRON_OVERRIDE --> CRON_ANDROID
+    CRON_OVERRIDE --> CRON_IOS
+    CRON_ANDROID --> CRON_EXPORT_IOS_DEBUG
+    CRON_IOS --> CRON_EXPORT_IOS_DEBUG
+
+    %% Webhook Build 詳細連線
+    WEBHOOK_OVERRIDE --> WEBHOOK_ANDROID
+    WEBHOOK_OVERRIDE --> WEBHOOK_IOS
+    WEBHOOK_ANDROID --> WEBHOOK_EXPORT_IOS
+    WEBHOOK_IOS --> WEBHOOK_EXPORT_IOS
+
+    %% Custom Build 詳細連線
+    CUSTOM_ANDROID --> CUSTOM_EXPORT_IOS
+    CUSTOM_IOS --> CUSTOM_EXPORT_IOS
+
+    %% Analyze 詳細連線
+    ANALYZE_CLOC --> ANALYZE_PMD
+
+    %% Test 詳細連線
+    TEST_FILENAME --> TEST_CONFIG_HASH --> TEST_UNITY_ANDROID --> TEST_UNITY_IOS
+
+    %% Deploy 平行
+    DEPLOY_CIFS & DEPLOY_FIREBASE & DEPLOY_TESTFLIGHT
+
+    %% Post Actions 詳細連線
+    POST_CLEAN_TEST --> POST_SUCCESS
+    POST_CLEAN_TEST --> POST_UNSTABLE
+    POST_CLEAN_TEST --> POST_ABORTED
+    POST_CLEAN_TEST --> POST_FAILURE
+    POST_CLEAN_TEST --> POST_FIXED
+    POST_CLEAN_TEST --> POST_REGRESSION
+
+    %% 樣式 (Dark Theme 友善)
+    classDef stage fill:#222e3c,stroke:#6ec6ff,stroke-width:2px,color:#fff,font-size:18px;
+    classDef step fill:#263238,stroke:#ffd54f,stroke-width:1.5px,color:#fff,font-size:14px;
+    class STAGE_INIT,STAGE_CHECK_ERROR,STAGE_ARCHIVE,STAGE_POST stage;
+    class INIT_CLEAN_CACHE,INIT_PRINT_CAUSE,INIT_CLEAN_REPO,INIT_REMOVE_ARTIFACTS,INIT_RESET_REPO,INIT_CHECKOUT,INIT_PREPARE_TEST,INIT_NOTIFY,CRON_OVERRIDE,CRON_ANDROID,CRON_IOS,CRON_EXPORT_IOS_DEBUG,WEBHOOK_OVERRIDE,WEBHOOK_ANDROID,WEBHOOK_IOS,WEBHOOK_EXPORT_IOS,CUSTOM_ANDROID,CUSTOM_IOS,CUSTOM_EXPORT_IOS,ANALYZE_CLOC,ANALYZE_PMD,TEST_FILENAME,TEST_CONFIG_HASH,TEST_UNITY_ANDROID,TEST_UNITY_IOS,DEPLOY_CIFS,DEPLOY_FIREBASE,DEPLOY_TESTFLIGHT,POST_CLEAN_TEST,POST_SUCCESS,POST_UNSTABLE,POST_ABORTED,POST_FAILURE,POST_FIXED,POST_REGRESSION step;
